@@ -764,12 +764,13 @@ class Circuit:
         streamid = RandShort()._fix()
         local_keymaterial = random.randint(0, 256 ** DH_SECLEN - 1)
         local_DHpubkey = pow(DH_G, local_keymaterial, DH_P)
+        command = (use_relay_early and "RELAY_EARLY" or "RELAY")
         self.socket.send(Raw(self.encrypt_cell(
                     # tor-spec 5.6:
                     # [Starting with Tor 0.2.3.11-alpha, future
                     # version of Tor, relays should reject any EXTEND
                     # cell not received in a RELAY_EARLY cell.]
-                    CellRelay(Command='RELAY_EARLY',
+                    CellRelay(Command=command,
                               CircID=self.circid,
                               RelayCommand='RELAY_EXTEND',
                               StreamID=streamid,
