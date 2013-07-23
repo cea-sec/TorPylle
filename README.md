@@ -9,7 +9,9 @@ Disclaimer
 Just in case: this project should never be used to provide any kind of
 anonymity.
 
-Use the Tor project instead (see https://www.torproject.org/)
+Use the Tor project instead (see https://www.torproject.org/).
+
+This project is NOT endorsed or related to the Tor project.
 
 Usage
 --
