@@ -794,6 +794,12 @@ class Circuit:
         hop = TorHop(node, x=local_keymaterial, gx=local_DHpubkey,
                      gy=peer_keymaterial, KH=peer_derivativekeydata)
         self.hops.append(hop)
+    def destroy(self, reason=0):
+        """
+        Tears down the Circuit.
+        """
+        self.socket.send(CellDestroy(CircID=self.circid,
+                                     ErrorCode=reason))
     def resolve(self, name):
         """
         Resolves a name (that can be a .in-addr.arpa address) through
