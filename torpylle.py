@@ -23,10 +23,11 @@ DH_P = 1797693134862315907708391567937874531978602960487560117064444236841971802
 CELL_LEN = 512
 KEY_LEN = 16
 
-torversion = re.compile('^Tor (\d+)\.(\d+)\.(\d+)\.(\d+)(-(?:alpha(?:-dev)?|beta|rc))?$')
+torversion = re.compile('^Tor (\d+)\.(\d+)\.(\d+)\.(\d+)(?:-(alpha(?:-dev)?|beta|rc))?$')
 torversionorder = [ 'alpha', 'alpha-dev', 'beta', 'rc', None ]
 torminversionproto2 = [ 0, 2, 0, 21, None ]
 torminversionproto3 = [ 0, 2, 3, 6, 'alpha' ]
+torminversionextended2 = [ 0, 2, 4, 8, 'alpha' ]
 
 def str2version(version):
     """
@@ -396,7 +397,7 @@ class CellDestroy(Cell):
     name = "Tor Destroy Cell"
     fields_desc = [
         ShortField('CircID', 0),
-        ByteEnumField('Command', 3, CELL_COMMANDS),
+        ByteEnumField('Command', 4, CELL_COMMANDS),
         ByteEnumField('ErrorCode', 0, CELL_DESTROY_CODES),
         StrFixedLenField('Padding', "", CELL_LEN - 4)
         ]
@@ -785,6 +786,7 @@ class Circuit:
         if cell.RelayCommand != 7: # RELAY_EXTENDED
             raise Exception('Expected RELAY_EXTENDED, got %d [%s]' % cell.RelayCommand, cell.sprintf('%RelayCommand%'))
         del(errorcell)
+        del(errorcellclear)
         peer_keymaterial = int(cell.Data[:DH_LEN].encode('hex'), 16)
         peer_derivativekeydata = cell.Data[DH_LEN:DH_LEN+HASH_LEN]
         hop = TorHop(node, x=local_keymaterial, gx=local_DHpubkey,
