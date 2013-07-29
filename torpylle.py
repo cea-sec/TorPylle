@@ -713,7 +713,7 @@ class Circuit:
             return self.hops[nodeindex].Kffunc.encrypt(message)
         elif direction == 'b':
             return self.hops[nodeindex].Kbfunc.encrypt(message)
-    def encrypt_cell(self, cell, computedigest=True):
+    def encrypt_cell(self, cell, tohop=None, computedigest=True):
         """
         Encrypts a Cell successively for each node in the circuit,
         starting with the exit (or last) node and ending with the
@@ -729,10 +729,11 @@ class Circuit:
             cell.Digest = h.digest()[:4]
         cell = str(cell)
         result = cell[3:]
-        for i in xrange(len(self.hops) - 1, -1, -1):
+        if tohop is None: tohop = len(self.hops) - 1
+        for i in xrange(tohop, -1, -1):
             result = self.stream_encrypt(result, i, direction='f')
         return cell[:3] + result
-    def decrypt_cell(self, cell):
+    def decrypt_cell(self, cell, fromhop=None):
         """
         Decrypts a Cell successively for each node in the circuit,
         starting with the entry node and ending with the exit (or last)
@@ -740,7 +741,8 @@ class Circuit:
         """
         cell = str(cell)
         result = cell[3:]
-        for i in xrange(len(self.hops) - 1, -1, -1):
+        if fromhop is None: fromhop = len(self.hops) - 1
+        for i in xrange(fromhop + 1):
             result = self.stream_encrypt(result, i, direction='b')
         return Cell(cell[:3] + result)
     def extend(self, node, use_relay_early=True):
