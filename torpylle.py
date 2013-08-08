@@ -23,10 +23,11 @@ DH_P = 1797693134862315907708391567937874531978602960487560117064444236841971802
 CELL_LEN = 512
 KEY_LEN = 16
 
-torversion = re.compile('^Tor (\d+)\.(\d+)\.(\d+)\.(\d+)(-(?:alpha(?:-dev)?|beta|rc))?$')
+torversion = re.compile('^Tor (\d+)\.(\d+)\.(\d+)\.(\d+)(?:-(alpha(?:-dev)?|beta|rc))?$')
 torversionorder = [ 'alpha', 'alpha-dev', 'beta', 'rc', None ]
 torminversionproto2 = [ 0, 2, 0, 21, None ]
 torminversionproto3 = [ 0, 2, 3, 6, 'alpha' ]
+torminversionextended2 = [ 0, 2, 4, 8, 'alpha' ]
 
 def str2version(version):
     """
@@ -396,7 +397,7 @@ class CellDestroy(Cell):
     name = "Tor Destroy Cell"
     fields_desc = [
         ShortField('CircID', 0),
-        ByteEnumField('Command', 3, CELL_COMMANDS),
+        ByteEnumField('Command', 4, CELL_COMMANDS),
         ByteEnumField('ErrorCode', 0, CELL_DESTROY_CODES),
         StrFixedLenField('Padding', "", CELL_LEN - 4)
         ]
@@ -712,7 +713,7 @@ class Circuit:
             return self.hops[nodeindex].Kffunc.encrypt(message)
         elif direction == 'b':
             return self.hops[nodeindex].Kbfunc.encrypt(message)
-    def encrypt_cell(self, cell, computedigest=True):
+    def encrypt_cell(self, cell, tohop=None, computedigest=True):
         """
         Encrypts a Cell successively for each node in the circuit,
         starting with the exit (or last) node and ending with the
@@ -728,10 +729,11 @@ class Circuit:
             cell.Digest = h.digest()[:4]
         cell = str(cell)
         result = cell[3:]
-        for i in xrange(len(self.hops) - 1, -1, -1):
+        if tohop is None: tohop = len(self.hops) - 1
+        for i in xrange(tohop, -1, -1):
             result = self.stream_encrypt(result, i, direction='f')
         return cell[:3] + result
-    def decrypt_cell(self, cell):
+    def decrypt_cell(self, cell, fromhop=None):
         """
         Decrypts a Cell successively for each node in the circuit,
         starting with the entry node and ending with the exit (or last)
@@ -739,7 +741,8 @@ class Circuit:
         """
         cell = str(cell)
         result = cell[3:]
-        for i in xrange(len(self.hops) - 1, -1, -1):
+        if fromhop is None: fromhop = len(self.hops) - 1
+        for i in xrange(fromhop + 1):
             result = self.stream_encrypt(result, i, direction='b')
         return Cell(cell[:3] + result)
     def extend(self, node, use_relay_early=True):
@@ -785,11 +788,18 @@ class Circuit:
         if cell.RelayCommand != 7: # RELAY_EXTENDED
             raise Exception('Expected RELAY_EXTENDED, got %d [%s]' % cell.RelayCommand, cell.sprintf('%RelayCommand%'))
         del(errorcell)
+        del(errorcellclear)
         peer_keymaterial = int(cell.Data[:DH_LEN].encode('hex'), 16)
         peer_derivativekeydata = cell.Data[DH_LEN:DH_LEN+HASH_LEN]
         hop = TorHop(node, x=local_keymaterial, gx=local_DHpubkey,
                      gy=peer_keymaterial, KH=peer_derivativekeydata)
         self.hops.append(hop)
+    def destroy(self, reason=0):
+        """
+        Tears down the Circuit.
+        """
+        self.socket.send(CellDestroy(CircID=self.circid,
+                                     ErrorCode=reason))
     def resolve(self, name):
         """
         Resolves a name (that can be a .in-addr.arpa address) through
